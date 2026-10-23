@@ -1,16 +1,24 @@
+# Локальный стенд: PostgreSQL + self container приложения.
+# Пароль берётся из файла .env (см. .env.example); старт без пароля запрещён.
+#   cp .env.example .env   # затем задать POSTGRES_PASSWORD
+#   docker compose up --build
+#
+# Оба порта публикуются только на 127.0.0.1, чтобы стенд не был доступен
+# из локальной сети.
+
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: tasks
-      POSTGRES_USER: tasks
-      POSTGRES_PASSWORD: tasks
+      POSTGRES_DB: ${POSTGRES_DB:-tasks}
+      POSTGRES_USER: ${POSTGRES_USER:-tasks}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tasks -d tasks"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tasks} -d ${POSTGRES_DB:-tasks}"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -21,11 +29,11 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/tasks
-      DB_USER: tasks
-      DB_PASSWORD: tasks
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tasks}
+      DB_USER: ${POSTGRES_USER:-tasks}
+      DB_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
 volumes:
   pgdata:

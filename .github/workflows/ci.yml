@@ -5,15 +5,41 @@ on:
     branches: [main]
   pull_request:
 
+# Минимально необходимые права для GITHUB_TOKEN: сборка ничего не публикует.
+permissions:
+  contents: read
+
+# Новый push в ту же ветку отменяет предыдущий незавершённый запуск.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Полная история нужна, чтобы скан секретов видел все коммиты.
+          fetch-depth: 0
+
+      - name: Scan history for secrets (gitleaks)
+        run: |
+          set -euo pipefail
+          GL_VERSION=v8.30.1
+          ARTIFACT=gitleaks_8.30.1_linux_x64.tar.gz
+          BASE=https://github.com/gitleaks/gitleaks/releases/download/${GL_VERSION}
+          curl -sSLO "${BASE}/${ARTIFACT}"
+          curl -sSL "${BASE}/gitleaks_8.30.1_checksums.txt" \
+            | grep " ${ARTIFACT}\$" | sha256sum -c --quiet -
+          tar -xzf "${ARTIFACT}" gitleaks
+          ./gitleaks detect --source . --redact --no-banner --exit-code 1
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
+
       - name: mvn verify
         run: mvn -B verify

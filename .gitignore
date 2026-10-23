@@ -1,5 +1,5 @@
 target/
-!.mvn/wrapper/maven-wrapper.jar
+
 .mvn/wrapper/maven-wrapper.jar
 
 .idea/
@@ -12,4 +12,20 @@ classes/
 Thumbs.db
 
 *.log
+
+# Локальные секреты и переопределения конфигурации — не коммитить.
+.env
+.env.*
+!.env.example
 application-local.yml
+application-local.properties
+
+# Ключи, сертификаты и хранилища ключей.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
