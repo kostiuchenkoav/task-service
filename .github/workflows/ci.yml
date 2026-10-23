@@ -17,8 +17,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      # Действия закреплены по полному SHA коммита: перепривязка тега не изменит запускаемый код
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Полная история нужна, чтобы скан секретов видел все коммиты.
           fetch-depth: 0
@@ -35,7 +37,7 @@ jobs:
           tar -xzf "${ARTIFACT}" gitleaks
           ./gitleaks detect --source . --redact --no-banner --exit-code 1
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: "21"
