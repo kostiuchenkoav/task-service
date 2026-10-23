@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -28,6 +30,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    /**
+     * Пустой провайдер пользователей. Без него Spring Security создаёт учётку user
+     * со случайным паролем и пишет этот пароль в лог при старте. Пароль не даёт доступа
+     * (httpBasic и formLogin отключены), но секрет в логах недопустим. Пользователей
+     * в приложении нет: доступ только по API-ключам.
+     */
+    @Bean
+    UserDetailsService noUserDetails() {
+        return new InMemoryUserDetailsManager();
+    }
 
     @Bean
     SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, SecurityProperties properties,
