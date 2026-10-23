@@ -1,6 +1,7 @@
 # Локальный стенд: PostgreSQL + self container приложения.
-# Пароль берётся из файла .env (см. .env.example); старт без пароля запрещён.
-#   cp .env.example .env   # затем задать POSTGRES_PASSWORD
+# Пароль БД и хеш API-ключа берутся из файла .env (см. .env.example);
+# старт без них запрещён.
+#   cp .env.example .env   # затем задать POSTGRES_PASSWORD и API_KEY_SHA256
 #   docker compose up --build
 #
 # Оба порта публикуются только на 127.0.0.1, чтобы стенд не был доступен
@@ -32,6 +33,9 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tasks}
       DB_USER: ${POSTGRES_USER:-tasks}
       DB_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}"
+      # Ключ клиента: в конфиге только SHA-256 от ключа (см. .env.example)
+      APP_SECURITY_APIKEYS_0_ID: "${API_KEY_ID:-local}"
+      APP_SECURITY_APIKEYS_0_SHA256: "${API_KEY_SHA256:?Set API_KEY_SHA256 in .env (see .env.example)}"
     ports:
       - "127.0.0.1:8080:8080"
 

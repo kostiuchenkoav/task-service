@@ -5,3 +5,16 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
+
+# Тестовый ключ: test-key (в конфиге только его SHA-256)
+app:
+  security:
+    api-keys:
+      - id: test
+        sha256: 62af8704764faf8ea82fc61ce9c4c3908b6cb97d463a634e9e587d7c885db0ef
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
