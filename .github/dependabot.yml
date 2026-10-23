@@ -1,0 +1,20 @@
+# Еженедельная проверка зависимостей и базовых образов.
+# Dependabot открывает PR с обновлениями и предупреждает о уязвимых версиях
+# (для этого в настройках репозитория должны быть включены Dependabot alerts).
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
