@@ -16,6 +16,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  # В контейнере приложение обязано слушать 0.0.0.0 (иначе порт не проброшен),
+  # но это значение по умолчанию: локальный запуск в профиле dev прижат к loopback.
+  address: ${SERVER_ADDRESS:0.0.0.0}
   shutdown: graceful
 
 spring.lifecycle.timeout-per-shutdown-phase: 20s

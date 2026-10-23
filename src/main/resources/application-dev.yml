@@ -1,5 +1,11 @@
 # Локальный запуск без внешней БД: in-memory H2 в режиме PostgreSQL.
 # Запуск: mvn spring-boot:run -Dspring-boot.run.profiles=dev
+#
+# dev включает H2-консоль (/h2-console) с пустым паролем, поэтому интерфейс
+# намеренно прижат к loopback: из локальной сети ни API, ни консоль не видны.
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
 spring:
   datasource:
     url: jdbc:h2:mem:tasks;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
