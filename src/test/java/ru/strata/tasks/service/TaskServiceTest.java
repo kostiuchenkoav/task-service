@@ -11,88 +11,102 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import ru.strata.tasks.domain.IdempotencyRecord;
+import ru.strata.tasks.domain.IdempotencyRecordRepository;
 import ru.strata.tasks.domain.Task;
+import ru.strata.tasks.domain.TaskEvent;
+import ru.strata.tasks.domain.TaskEventRepository;
+import ru.strata.tasks.domain.TaskEventType;
 import ru.strata.tasks.domain.TaskRepository;
 import ru.strata.tasks.domain.TaskStatus;
+import ru.strata.tasks.security.ApiClient;
 
 class TaskServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-01-01T10:00:00Z");
-    private static final Instant EARLIER = NOW.minusSeconds(3600);
+    private static final ApiClient CLIENT = new ApiClient("key-a", "tenant-a");
 
-    private final TaskRepository repository = mock(TaskRepository.class);
-    private final TaskService service = new TaskService(repository, Clock.fixed(NOW, ZoneOffset.UTC));
+    private final TaskRepository tasks = mock(TaskRepository.class);
+    private final TaskEventRepository events = mock(TaskEventRepository.class);
+    private final IdempotencyRecordRepository idempotency = mock(IdempotencyRecordRepository.class);
+    private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    private final TaskService service = new TaskService(tasks, events, idempotency, clock);
 
     @Test
-    void createUsesOpenStatusAndClockTimestamps() {
-        when(repository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void createStoresTaskForTenantAndRecordsAuditEvent() {
+        when(tasks.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Task task = service.create(new CreateTaskCommand("Собрать отчёт", "за описанием", null));
+        TaskService.CreateResult result = service.create(CLIENT,
+                new CreateTaskCommand("Написать тесты", null, null), null);
 
-        assertThat(task.getStatus()).isEqualTo(TaskStatus.OPEN);
-        assertThat(task.getCreatedAt()).isEqualTo(NOW);
-        assertThat(task.getUpdatedAt()).isEqualTo(NOW);
+        assertThat(result.created()).isTrue();
+        assertThat(result.task().getTenantId()).isEqualTo("tenant-a");
+        assertThat(result.task().getStatus()).isEqualTo(TaskStatus.OPEN);
+        verify(events).save(any(TaskEvent.class));
+        verify(idempotency, never()).save(any());
     }
 
     @Test
-    void getThrowsNotFoundForUnknownId() {
-        when(repository.findById(42L)).thenReturn(Optional.empty());
+    void createWithKnownIdempotencyKeyReturnsExistingTaskWithoutSaving() {
+        Task existing = Task.restore(7L, "tenant-a", "Уже создана", null, TaskStatus.OPEN, NOW, NOW);
+        when(idempotency.findByTenantIdAndIdemKey("tenant-a", "key-1"))
+                .thenReturn(Optional.of(new IdempotencyRecord("tenant-a", "key-1", 7L, NOW)));
+        when(tasks.findByIdAndTenantId(7L, "tenant-a")).thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> service.get(42L))
-                .isInstanceOf(TaskNotFoundException.class)
-                .hasMessageContaining("42");
+        TaskService.CreateResult result = service.create(CLIENT,
+                new CreateTaskCommand("Дубликат", null, null), "key-1");
+
+        assertThat(result.created()).isFalse();
+        assertThat(result.task().getId()).isEqualTo(7L);
+        verify(tasks, never()).save(any());
     }
 
     @Test
-    void transitionMovesOpenTaskToInProgressAndTouchesUpdatedAt() {
-        Task task = Task.restore(1L, "title", null, TaskStatus.OPEN, EARLIER, EARLIER);
-        when(repository.findById(1L)).thenReturn(Optional.of(task));
+    void taskOfAnotherTenantIsReportedAsNotFound() {
+        when(tasks.findByIdAndTenantId(5L, "tenant-a")).thenReturn(Optional.empty());
 
-        Task moved = service.transition(1L, TaskStatus.IN_PROGRESS);
-
-        assertThat(moved.getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
-        assertThat(moved.getUpdatedAt()).isEqualTo(NOW);
+        assertThatThrownBy(() -> service.get(CLIENT, 5L))
+                .isInstanceOf(TaskNotFoundException.class);
     }
 
     @Test
-    void transitionRejectsReopeningDoneTask() {
-        Task task = Task.restore(2L, "title", null, TaskStatus.DONE, EARLIER, EARLIER);
-        when(repository.findById(2L)).thenReturn(Optional.of(task));
+    void illegalTransitionIsRejectedWithoutAuditEvent() {
+        Task done = Task.restore(3L, "tenant-a", "Готово", null, TaskStatus.DONE, NOW, NOW);
+        when(tasks.findByIdAndTenantId(3L, "tenant-a")).thenReturn(Optional.of(done));
 
-        assertThatThrownBy(() -> service.transition(2L, TaskStatus.IN_PROGRESS))
-                .isInstanceOf(InvalidTaskStateException.class)
-                .hasMessageContaining("DONE");
+        assertThatThrownBy(() -> service.transition(CLIENT, 3L, TaskStatus.IN_PROGRESS))
+                .isInstanceOf(InvalidTaskStateException.class);
+        verify(events, never()).save(any());
     }
 
     @Test
-    void updateReplacesContent() {
-        Task task = Task.restore(3L, "old", "old description", TaskStatus.OPEN, EARLIER, EARLIER);
-        when(repository.findById(3L)).thenReturn(Optional.of(task));
+    void deleteIsSoftAndRecordsDeletionEvent() {
+        Task open = Task.restore(4L, "tenant-a", "Удаляем", null, TaskStatus.OPEN, NOW, NOW);
+        when(tasks.findByIdAndTenantId(4L, "tenant-a")).thenReturn(Optional.of(open));
 
-        Task updated = service.update(3L, new UpdateTaskCommand("new", "new description"));
+        service.delete(CLIENT, 4L);
 
-        assertThat(updated.getTitle()).isEqualTo("new");
-        assertThat(updated.getDescription()).isEqualTo("new description");
-        assertThat(updated.getUpdatedAt()).isEqualTo(NOW);
+        assertThat(open.getDeletedAt()).isEqualTo(NOW);
+        verify(tasks, never()).delete(any());
+        verify(events).save(any(TaskEvent.class));
     }
 
     @Test
-    void deleteMissingTaskThrowsAndDoesNotCallRepository() {
-        when(repository.existsById(7L)).thenReturn(false);
+    void historyOfUnknownTaskIsNotFound() {
+        when(events.findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc("tenant-a", 9L)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.delete(7L)).isInstanceOf(TaskNotFoundException.class);
-
-        verify(repository, never()).deleteById(7L);
+        assertThatThrownBy(() -> service.history(CLIENT, 9L))
+                .isInstanceOf(TaskNotFoundException.class);
     }
 
     @Test
-    void deleteExistingTaskCallsRepository() {
-        when(repository.existsById(8L)).thenReturn(true);
+    void historyReturnsEventsInOrder() {
+        TaskEvent created = TaskEvent.of("tenant-a", 2L, TaskEventType.CREATED, null, TaskStatus.OPEN, "key-a", NOW);
+        when(events.findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc("tenant-a", 2L)).thenReturn(List.of(created));
 
-        service.delete(8L);
-
-        verify(repository).deleteById(8L);
+        assertThat(service.history(CLIENT, 2L)).containsExactly(created);
     }
 }

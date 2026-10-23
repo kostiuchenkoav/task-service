@@ -24,6 +24,7 @@ app:
     api-keys:
       # значение ключа: dev-key (SHA-256 записан, сам ключ в файле не хранится)
       - id: dev
+        tenant: local
         sha256: 7e9f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18704e
 
 springdoc:
