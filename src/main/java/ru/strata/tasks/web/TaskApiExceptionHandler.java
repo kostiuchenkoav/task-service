@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -62,6 +63,19 @@ public class TaskApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed request");
         problem.setTitle("Invalid request");
         log.debug("Rejected request payload", ex);
+        return problem;
+    }
+
+    /**
+     * Два параллельных запроса с одним Idempotency-Key: второй упирается в уникальный индекс.
+     * Клиент должен повторить запрос, и тогда он получит уже созданную задачу.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleIntegrityViolation(DataIntegrityViolationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, "Concurrent request with the same Idempotency-Key, retry to get the result");
+        problem.setTitle("Conflict");
+        log.debug("Integrity violation", ex);
         return problem;
     }
 

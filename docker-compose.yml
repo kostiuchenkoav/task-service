@@ -35,6 +35,8 @@ services:
       DB_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}"
       # Ключ клиента: в конфиге только SHA-256 от ключа (см. .env.example)
       APP_SECURITY_APIKEYS_0_ID: "${API_KEY_ID:-local}"
+      # Тенант: все задачи, созданные этим ключом, принадлежат ему
+      APP_SECURITY_APIKEYS_0_TENANT: "${API_KEY_TENANT:-local}"
       APP_SECURITY_APIKEYS_0_SHA256: "${API_KEY_SHA256:?Set API_KEY_SHA256 in .env (see .env.example)}"
     ports:
       - "127.0.0.1:8080:8080"

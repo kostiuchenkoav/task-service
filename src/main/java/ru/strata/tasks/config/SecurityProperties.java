@@ -12,6 +12,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   security:
  *     api-keys:
  *       - id: billing-service
+ *         tenant: acme
  *         sha256: 9f86d0...   # printf '%s' "$KEY" | sha256sum
  * </pre>
  *
@@ -26,8 +27,9 @@ public record SecurityProperties(List<ApiKey> apiKeys) {
 
     /**
      * @param id     имя клиента для журнала (не секрет)
+     * @param tenant арендатор, которому принадлежат задачи клиента
      * @param sha256 SHA-256 от значения ключа, 64 hex-символа
      */
-    public record ApiKey(String id, String sha256) {
+    public record ApiKey(String id, String tenant, String sha256) {
     }
 }
