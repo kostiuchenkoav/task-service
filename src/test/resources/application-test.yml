@@ -20,6 +20,10 @@ app:
         tenant: tenant-b
         sha256: b28592d358781a58d1e486318d9bd54382141142d48b0f1f74e9838a42f2bf53
 
+# В тестах лимит намеренно высокий: он проверяется отдельным юнит-тестом фильтра
+  rate-limit:
+    requests-per-minute: 1000
+
 springdoc:
   api-docs:
     enabled: true

@@ -1,9 +1,11 @@
 package ru.strata.tasks.config;
 
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,6 +13,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
@@ -27,7 +30,9 @@ class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
-    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, SecurityProperties properties) throws Exception {
+    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http, SecurityProperties properties,
+                                               @Value("${app.rate-limit.requests-per-minute:120}") int requestsPerMinute)
+            throws Exception {
         if (properties.apiKeys().isEmpty()) {
             log.warn("app.security.api-keys пуст: все защищённые эндпоинты будут отвечать 401");
         }
@@ -44,6 +49,9 @@ class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(new ApiKeyAuthenticationFilter(properties.apiKeys()),
                         UsernamePasswordAuthenticationFilter.class)
+                // Лимит считается после аутентификации, но до решения об авторизации
+                .addFilterBefore(new RateLimitFilter(requestsPerMinute, Clock.systemUTC()),
+                        AuthorizationFilter.class)
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(unauthorized()));
         return http.build();
     }
