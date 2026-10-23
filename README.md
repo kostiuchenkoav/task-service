@@ -15,6 +15,7 @@
 | Схема БД | Flyway, `ddl-auto: validate` |
 | Доступ к данным | Spring Data JPA |
 | Наблюдаемость | Spring Boot Actuator (`/actuator/health`, `/actuator/info`), graceful shutdown |
+| Документация API | springdoc-openapi 3.1.1 (ветка 3.x под Spring Boot 4): OpenAPI 3 + Swagger UI |
 
 ## Структура
 
@@ -22,6 +23,7 @@
 src/main/java/ru/strata/tasks
 ├── TaskServiceApplication.java     входная точка
 ├── config/AppConfig.java           Bean Clock (тестируемость времени)
+├── config/OpenApiConfig.java       метаданные OpenAPI: название, версия, описание правил
 ├── domain/                         сущность, enum статусов + правила переходов, репозиторий
 ├── service/                        бизнес-операции, команды, предметные исключения
 └── web/                            контроллер, DTO, единый обработчик ошибок
@@ -85,6 +87,14 @@ PostgreSQL (healthcheck).
 | `POST` | `/api/v1/tasks/{id}/transitions` | смена статуса (`{"status": "IN_PROGRESS"}`) |
 | `DELETE` | `/api/v1/tasks/{id}` | удалить (204) |
 | `GET` | `/actuator/health` | состояние сервиса |
+| `GET` | `/swagger-ui.html` | интерактивная документация (Swagger UI) |
+| `GET` | `/v3/api-docs` | спецификация OpenAPI в JSON |
+
+Документация строится по аннотациям контроллера и охватывает только пакет
+`ru.strata.tasks.web`, поэтому служебные эндпоинты (`/actuator/*`, `/h2-console`)
+в бизнес-спецификацию не попадают. В Swagger UI можно выбрать параметр `status`,
+вставить JSON тела и выполнить запрос прямо из браузера («Try it out») — браузер
+тот же, что и у сервиса, поэтому CORS не мешает.
 
 Статусы: `OPEN` → `IN_PROGRESS` → `DONE`; `CANCELLED` доступен из `OPEN` и `IN_PROGRESS`;
 переходы из терминальных статусов запрещены и дают `409 Conflict`.
@@ -125,6 +135,7 @@ mvn verify
 - `TaskApiTest` — контракт веб-слоя: коды ответов, валидация, формат ошибок (MockMvc без контейнера).
 - `TaskServiceApplicationTests` — H2 + миграции Flyway: сверка схемы с JPA-маппингом и полный жизненный цикл задачи.
 - `ProductionDataSourceGuardTest` — запуск на PostgreSQL без пароля запрещён, встроенная база работает без пароля.
+- `OpenApiTest` — спецификация `v3/api-docs` отдаётся, описывает все шесть операций и не содержит служебных путей; Swagger UI доступен.
 
 ## Схема БД
 
@@ -149,5 +160,4 @@ mvn verify
 
 - заменить предметную область (сейчас «задачи») на вашу: переименовать пакет `ru.strata.tasks`, артефакт и таблицу;
 - аутентификация/авторизация (Spring Security) и привязка задач к владельцу;
-- OpenAPI-документация (springdoc) — версия под Spring Boot 4 на момент шаблона не зафиксирована, поэтому не подключена;
 - метрики Prometheus, трассировка, вычитывание событий (outbox), сортировка по другим полям.

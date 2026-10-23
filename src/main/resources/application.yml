@@ -20,6 +20,15 @@ server:
 
 spring.lifecycle.timeout-per-shutdown-phase: 20s
 
+springdoc:
+  # В спецификацию попадают только наши контроллеры, служебные эндпоинты — нет.
+  packages-to-scan: ru.strata.tasks.web
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
 management:
   endpoints:
     web:

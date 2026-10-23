@@ -1,5 +1,7 @@
 package ru.strata.tasks.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +31,7 @@ import ru.strata.tasks.web.dto.UpdateTaskRequest;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
+@Tag(name = "tasks", description = "Задачи: создание, выдача, поиск, изменение, переходы статуса, удаление")
 public class TaskController {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
@@ -40,6 +43,9 @@ public class TaskController {
         this.service = service;
     }
 
+    @Operation(summary = "Создать задачу", description = """
+            Статус можно не указывать — будет OPEN. Пустой title отклоняется с 400 \
+            и списком ошибок в полях.""")
     @PostMapping
     public ResponseEntity<TaskResponse> create(@Valid @RequestBody CreateTaskRequest request) {
         var task = service.create(new CreateTaskCommand(request.title(), request.description(), request.status()));
@@ -48,6 +54,9 @@ public class TaskController {
                 .body(TaskResponse.from(task));
     }
 
+    @Operation(summary = "Список задач", description = """
+            Отсортировано по времени создания (новые раньше). size ограничен 100, \
+            значения вне диапазона приводятся к границам.""")
     @GetMapping
     public PagedResponse<TaskResponse> list(
             @RequestParam(required = false) TaskStatus status,
@@ -60,11 +69,15 @@ public class TaskController {
         return PagedResponse.from(service.list(status, pageable).map(TaskResponse::from));
     }
 
+    @Operation(summary = "Задача по идентификатору", description = "404 в формате problem+json, если задачи нет.")
     @GetMapping("/{id}")
     public TaskResponse get(@PathVariable long id) {
         return TaskResponse.from(service.get(id));
     }
 
+    @Operation(summary = "Обновить заголовок и описание", description = """
+            Статус этим методом не меняется — для него есть /transitions. \
+            version в ответе растёт (оптимистичная блокировка).""")
     @PutMapping("/{id}")
     public TaskResponse update(@PathVariable long id, @Valid @RequestBody UpdateTaskRequest request) {
         var task = service.update(id, new UpdateTaskCommand(request.title(), request.description()));
@@ -75,11 +88,15 @@ public class TaskController {
      * Переход статуса отдельным ресурсом: это позволяет добавлять
      * собственные правила и метрики на смену состояния.
      */
+    @Operation(summary = "Перевести задачу в другой статус", description = """
+            Конечный автомат: OPEN -> IN_PROGRESS -> DONE, до CANCELLED — из любого \
+            активного состояния. Незаконный переход — 409 с from/to в теле ответа.""")
     @PostMapping("/{id}/transitions")
     public TaskResponse transition(@PathVariable long id, @Valid @RequestBody ChangeStatusRequest request) {
         return TaskResponse.from(service.transition(id, request.status()));
     }
 
+    @Operation(summary = "Удалить задачу", description = "Ответ 204 без тела.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
