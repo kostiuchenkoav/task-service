@@ -11,6 +11,11 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        # Все даты пишутся и читаются в UTC независимо от часового пояса сервера
+        jdbc:
+          time_zone: UTC
   flyway:
     enabled: true
 
@@ -23,12 +28,23 @@ server:
 
 spring.lifecycle.timeout-per-shutdown-phase: 20s
 
+# Ключи клиентов: см. SecurityProperties. Пусто — API закрыт для всех.
+# Задаются переменными окружения, например:
+#   APP_SECURITY_APIKEYS_0_ID=billing
+#   APP_SECURITY_APIKEYS_0_SHA256=<sha256 от ключа>
+app:
+  security:
+    api-keys: []
+
 springdoc:
   # В спецификацию попадают только наши контроллеры, служебные эндпоинты — нет.
   packages-to-scan: ru.strata.tasks.web
+  # По умолчанию OpenAPI и Swagger UI выключены; профили dev и test включают их явно.
   api-docs:
+    enabled: false
     path: /v3/api-docs
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
     operations-sorter: method
 

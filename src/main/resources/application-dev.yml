@@ -3,6 +3,8 @@
 #
 # dev включает H2-консоль (/h2-console) с пустым паролем, поэтому интерфейс
 # намеренно прижат к loopback: из локальной сети ни API, ни консоль не видны.
+#
+# Ключ dev-key — только для локальной разработки, в проде он не используется.
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
 
@@ -16,3 +18,16 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+app:
+  security:
+    api-keys:
+      # значение ключа: dev-key (SHA-256 записан, сам ключ в файле не хранится)
+      - id: dev
+        sha256: 7e9f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18704e
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

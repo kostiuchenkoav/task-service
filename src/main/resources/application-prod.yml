@@ -1,0 +1,27 @@
+# Боевой профиль. Активируется в Docker-образе (SPRING_PROFILES_ACTIVE=prod).
+# Секреты (DB_PASSWORD, APP_SECURITY_APIKEYS_*) передаются только через окружение.
+server:
+  # Наружу не уходят тексты исключений, сообщения и трассы
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+  # За балансировщиком/прокси корректно определяем схему и адрес клиента
+  forward-headers-strategy: framework
+
+springdoc:
+  # В бою Swagger UI и OpenAPI-документы не публикуются
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,info
