@@ -9,10 +9,17 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
 
+  # Базовые образы закреплены на Java 21 LTS (pom.xml: java.version 21).
+  # Мажорные версии образов (например, temurin 24/26) меняют версию языка
+  # и требуют отдельной миграции, поэтому Dependabot их не предлагает.
+  # Патчи и минорные обновления 21.x приходят как обычно.
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
